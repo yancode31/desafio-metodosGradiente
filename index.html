@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Presupuesto TI · Gradientes Conjugados Precondicionados · UMSA</title>
+<style>
+:root{
+  --bg:#f4f7fb; --panel:#fff; --ink:#17243b; --muted:#5b6b78;
+  --line:#dde6ef; --ac:#0b6e6e; --ac2:#2457d6; --or:#c2410c;
+  --ok:#0b6e3a; --bad:#b42318; --warn:#a96508; --shadow:0 10px 30px rgba(20,42,80,.07);
+  color-scheme:light dark;
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#0f161c;--panel:#16212a;--ink:#e6edf2;--muted:#9fb0bd;--line:#2b3a46;
+        --ac:#4fd1c5;--ac2:#7ba7ff;--or:#fb923c;--ok:#6ee7a0;--bad:#ff8a80;--warn:#fbbf24;
+        --shadow:0 10px 30px rgba(0,0,0,.35)}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+header{background:linear-gradient(120deg,#14294d,#0b6e6e);color:#fff;
+  padding:32px max(20px,calc((100% - 1180px)/2)) 26px}
+header .eyebrow{opacity:.85;text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:700}
+h1{font-size:clamp(24px,3.6vw,36px);line-height:1.12;margin:8px 0 6px;letter-spacing:-.02em}
+header p{max-width:820px;color:#dce7ff;margin:6px 0 0;font-size:14px}
+main{max-width:1180px;margin:22px auto;padding:0 18px 56px}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}
+nav a{background:var(--panel);border:1px solid var(--line);border-radius:999px;
+  padding:7px 12px;color:var(--ink);text-decoration:none;font-size:12.5px;font-weight:650}
+nav a:hover{color:var(--ac);border-color:var(--ac)}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:18px;box-shadow:var(--shadow);min-width:0}
+.s12{grid-column:span 12}.s8{grid-column:span 8}.s7{grid-column:span 7}
+.s6{grid-column:span 6}.s5{grid-column:span 5}.s4{grid-column:span 4}
+h2{font-size:18px;margin:0 0 4px}h3{font-size:14px;margin:14px 0 6px}
+.sub{color:var(--muted);font-size:12.5px;margin:0 0 12px}
+p{max-width:78ch}
+.mut{color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:8px 0}
+.kpi{background:color-mix(in srgb,var(--ac) 5%,var(--panel));border:1px solid var(--line);
+  padding:11px;border-radius:11px}
+.kpi small{display:block;color:var(--muted);font-size:11px}
+.kpi strong{font-size:18px;display:block;margin-top:3px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+button{border:0;border-radius:8px;background:var(--ac);color:var(--bg);padding:9px 13px;
+  font-weight:700;cursor:pointer;font-size:13px}
+button.sec{background:color-mix(in srgb,var(--ac2) 14%,var(--panel));color:var(--ac2);
+  border:1px solid color-mix(in srgb,var(--ac2) 35%,var(--line))}
+button.ghost{background:transparent;color:var(--ac);border:1px solid var(--ac)}
+button:hover{filter:brightness(.96)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+label{display:flex;flex-direction:column;color:var(--muted);font-size:11.5px;font-weight:700;margin:6px 0 3px}
+input,select{font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line);
+  border-radius:7px;padding:7px 8px;font-size:13px}
+input[type=number]{font-family:ui-monospace,Menlo,Consolas,monospace;width:100%;min-width:0}
+.matrix{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;max-width:560px}
+.rowin{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;max-width:560px}
+.status{padding:9px 12px;border-radius:9px;font-size:12.5px;margin:10px 0}
+.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.warn{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.bad{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;
+  vertical-align:top;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+  background:color-mix(in srgb,var(--ac) 4%,var(--panel))}
+td.n,code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.8px}
+td.wrap{white-space:normal;min-width:220px}
+.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:9px;margin:6px 0}
+.big{font-size:1.02rem;border-left:4px solid var(--ac);padding-left:.85rem}
+.pill{display:inline-block;border-radius:999px;
+  background:color-mix(in srgb,var(--ac2) 12%,transparent);color:var(--ac2);
+  padding:2px 8px;font-size:11px;font-weight:700}
+.math{font-family:Georgia,"Times New Roman",serif;background:color-mix(in srgb,var(--ac) 5%,var(--panel));
+  border-radius:8px;padding:10px 12px;overflow:auto;font-size:14px;margin:6px 0}
+canvas{width:100%;max-width:100%;height:auto;border:1px solid var(--line);
+  background:var(--panel);border-radius:9px}
+.note{font-size:11.8px;color:var(--muted)}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:18px}
+@media(max-width:850px){.s8,.s7,.s6,.s5,.s4{grid-column:span 12}
+  .kpis{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">Universidad Mayor de San Andrés · Carrera de Informática · Métodos Numéricos</div>
+  <h1>Presupuesto de TI con Gradientes Conjugados Precondicionados</h1>
+  <p>Asignación de un presupuesto anual de tecnología entre cuatro unidades organizacionales mediante
+     <b>Ax = b</b> con A simétrica definida positiva. Se compara la solución directa (Cholesky),
+     Gradientes Conjugados (GC) y Gradientes Conjugados Precondicionados (GCP) con Jacobi, IC(0) y SSOR.</p>
+  <p class="mut" style="color:#cfe1ff">Estudiante: <b>[NOMBRE COMPLETO]</b> · Mención: Ingeniería de Sistemas · Tolerancia 10⁻⁶</p>
+</header>
+
+<main>
+<nav aria-label="Módulos">
+  <a href="#caso">1 Caso</a><a href="#formulacion">2 Formulación</a><a href="#entrada">3 Entrada</a>
+  <a href="#escenarios">4 Escenarios</a><a href="#referencia">5 Referencia</a><a href="#gcp">6 GCP vs GC</a>
+  <a href="#errores">7 Errores</a><a href="#comparativa">8 Tabla comparativa</a><a href="#qa">9 QA</a>
+  <a href="#conclusiones">10 Conclusiones</a>
+</nav>
+
+<section id="caso" class="grid">
+  <div class="card s8">
+    <h2>1. Caso de estudio</h2>
+    <p class="sub">Modelo sintético de distribución presupuestaria interdepartamental.</p>
+    <p>Una empresa mediana distribuye su presupuesto anual de TI entre cuatro unidades. Cada unidad tiene
+       un costo propio creciente (rendimientos decrecientes) y comparte recursos con las demás (licencias,
+       personal, infraestructura). Se busca el reparto <b>x</b> que minimiza el costo total
+       f(x) = ½ xᵀAx − bᵀx. Como A es simétrica definida positiva, f es estrictamente convexa y su único
+       mínimo satisface <b>Ax = b</b>.</p>
+    <div class="math">x = [x₁, x₂, x₃, x₄]ᵀ, cada xᵢ en miles de Bs</div>
+    <p class="note">Procedencia de los datos: valores ilustrativos calibrados para el ejercicio académico.
+       No son cifras oficiales de ninguna empresa; sustitúyelos por los de tu caso real si los tienes y cita la fuente.</p>
+  </div>
+  <div class="card s4">
+    <h2>Objetivo numérico</h2>
+    <p class="sub">Criterio de parada del desafío</p>
+    <div class="math">‖rₖ‖₂ / ‖b‖₂ &lt; 10⁻⁶, rₖ = b − Axₖ</div>
+    <p class="note">N<sub>máx</sub> = 1000 iteraciones. La referencia se obtiene con factorización de Cholesky A = LLᵀ.</p>
+    <span class="pill">Tolerancia 1 × 10⁻⁶</span>
+  </div>
+</section>
+
+<section id="formulacion" class="grid" style="margin-top:16px">
+  <div class="card s12">
+    <h2>2. Formulación del modelo</h2>
+    <div class="tablewrap"><table id="vars"></table></div>
+    <p><b>Interpretación de coeficientes.</b> a<sub>ii</sub> es el costo marginal propio de la unidad i
+       (crece con su escala de gasto). a<sub>ij</sub> = a<sub>ji</sub> (i≠j) mide la competencia por recurso
+       compartido entre las unidades i y j; es simétrico porque el recurso es el mismo. b<sub>i</sub> es la
+       necesidad de inversión de la unidad i.</p>
+    <p>Escenario cargado: <b id="scn">Ideal</b>. Verificación para este escenario:</p>
+    <div id="sdp"></div>
+  </div>
+</section>
+
+<section id="entrada" class="grid" style="margin-top:16px">
+  <div class="card s7">
+    <h2>3. Entrada de datos</h2>
+    <p class="sub">Edita cualquier coeficiente: el sistema valida y recalcula al instante. Los cambios no
+       fuerzan simetría, para poder probar matrices inválidas.</p>
+    <div class="tablewrap"><table id="mat"></table></div>
+    <div class="rowin">
+      <label>x₀ (separado por comas)<input id="x0" value="0,0,0,0"></label>
+      <label>Precondicionador
+        <select id="pt">
+          <option value="jacobi">Jacobi (diagonal)</option>
+          <option value="ic0">Cholesky incompleto IC(0)</option>
+          <option value="ssor">SSOR (ω = 1)</option>
+          <option value="none">Ninguno</option>
+        </select>
+      </label>
+      <label>Tolerancia<input id="tol" type="number" value="1e-6" step="any" min="1e-15"></label>
+      <label>N máx<input id="nm" type="number" value="1000" min="1" step="1"></label>
+    </div>
+    <div class="actions"><button class="p" id="go">Ejecutar</button></div>
+    <div id="msg"></div>
+  </div>
+  <div class="card s5">
+    <h2>Métodos implementados</h2>
+    <p class="sub">Algoritmos ejecutados en el navegador, sin enviar datos a un servidor.</p>
+    <h3>Cholesky · referencia</h3>
+    <div class="math">A = LLᵀ; Ly = b; Lᵀx = y</div>
+    <h3>Gradientes Conjugados (GC)</h3>
+    <div class="math">αₖ = (rₖᵀrₖ)/(pₖᵀApₖ); βₖ = (rₖ₊₁ᵀrₖ₊₁)/(rₖᵀrₖ)</div>
+    <h3>GCP · Suñagua (2020)</h3>
+    <div class="math">Mzₖ = rₖ; αₖ = (rₖᵀzₖ)/(pₖᵀApₖ); βₖ = (rₖ₊₁ᵀzₖ₊₁)/(rₖᵀzₖ)</div>
+    <p class="note"><b>Jacobi:</b> M = diag(A). <b>IC(0):</b> M = L̃L̃ᵀ con L̃ la parte triangular inferior de A
+       factorizada sin relleno. <b>SSOR (ω=1):</b> M = (1/(2−ω))·(D+ωL)·D⁻¹·(D+ωL)ᵀ resuelta en dos sustituciones.</p>
+  </div>
+</section>
+
+<section id="escenarios" class="grid" style="margin-top:16px">
+  <div class="card s12">
+    <h2>4. Tres escenarios</h2>
+    <div class="actions" id="sbtn">
+      <button data-s="ideal">Ideal</button>
+      <button data-s="estres">Bajo estrés</button>
+      <button data-s="mal">Mal condicionado</button>
+    </div>
+    <p class="mut">Ideal: A bien condicionada (κ ~ 10¹). Estrés: inflación del 15 % en costos unitarios
+       (A·1,15) y cambio de la demanda (b). Mal condicionado: las unidades se miden en escalas muy
+       distintas, A' = D·A·D con D = diag(1, 10, 100, 1000) y b' = D·b (κ ~ 10⁹). El precondicionador de
+       Jacobi revierte el mal escalamiento diagonal. La tabla de la sección 8 usa el precondicionador y la
+       tolerancia seleccionados arriba.</p>
+  </div>
+</section>
+
+<section id="referencia" class="grid" style="margin-top:16px">
+  <div class="card s12">
+    <h2>5. Solución de referencia</h2>
+    <p class="sub">Método directo: factorización de Cholesky A = LLᵀ, con sustitución hacia adelante y
+       hacia atrás (válido por ser A simétrica definida positiva). Se clasifica como solución exacta salvo
+       redondeo de máquina.</p>
+    <div id="ref"></div>
+  </div>
+</section>
+
+<section id="gcp" class="grid" style="margin-top:16px">
+  <div class="card s7">
+    <h2>6. GCP vs GC</h2>
+    <div id="gcpout"></div>
+  </div>
+  <div class="card s5">
+    <h2>Convergencia</h2>
+    <p class="sub">Residuo relativo por iteración (escala logarítmica).</p>
+    <canvas id="cv" width="720" height="300" aria-label="Residuo relativo por iteración"></canvas>
+    <p class="note">Línea sólida: GCP. Línea discontinua: GC sin precondicionar. Línea horizontal: tolerancia.
+       Con n = 4, en aritmética exacta ambos terminan en a lo sumo 4 iteraciones; la ventaja del
+       precondicionador se nota sobre todo en el escenario mal condicionado.</p>
+  </div>
+</section>
+
+<section id="errores" class="grid" style="margin-top:16px">
+  <div class="card s12">
+    <h2>7. Análisis de errores</h2>
+    <div class="tablewrap"><table id="errs"></table></div>
+    <div id="resg"></div>
+  </div>
+</section>
+
+<section id="comparativa" class="grid" style="margin-top:16px">
+  <div class="card s12">
+    <h2>8. Tabla comparativa obligatoria</h2>
+    <p class="sub">Indicadores por escenario con el precondicionador y la tolerancia seleccionados arriba.</p>
+    <div class="tablewrap"><table id="comp"></table></div>
+  </div>
+</section>
+
+<section id="qa" class="grid" style="margin-top:16px">
+  <div class="card s12">
+    <h2>9. Módulo de pruebas (QA)</h2>
+    <p class="sub">Pruebas funcionales ejecutables con formato estándar del enunciado.</p>
+    <button id="rqa">Ejecutar pruebas</button>
+    <div class="tablewrap" style="margin-top:12px"><table id="qat"></table></div>
+  </div>
+</section>
+
+<section id="conclusiones" class="grid" style="margin-top:16px">
+  <div class="card s12">
+    <h2>10. Conclusiones y referencias</h2>
+    <p><b>Matemática.</b> El condicionamiento de A explica la dificultad del problema, no su solución: en
+       el escenario de estrés κ(A) no cambia, solo se desplaza el equilibrio. En el mal condicionado κ(A)
+       crece varios órdenes por mal escalamiento diagonal y el precondicionador de Jacobi lo reduce a un
+       valor cercano al del escenario ideal. IC(0) y SSOR son alternativas cuando el problema tiene fuerte
+       acoplamiento fuera de la diagonal; con n = 4 y A diagonalmente dominante, Jacobi basta.</p>
+    <p><b>Financiera.</b> Bajo inflación, la asignación óptima aumenta en proporción distinta a cada
+       unidad, según su demanda y sus interacciones. Si las unidades se miden con escalas incompatibles,
+       un solver sin precondicionar es frágil aunque el reparto subyacente sea el mismo. Jacobi restituye
+       la estabilidad numérica sin alterar el óptimo financiero.</p>
+    <p class="note">Suñagua S., P. (2020). Método de Gradientes Conjugados Precondicionado.
+       <i>Revista Boliviana de Matemática – UMSA</i>, 04, 2–7. · Golub, G. H., &amp; Van Loan, C. F. (2013).
+       <i>Matrix Computations</i> (4.ª ed.). Johns Hopkins University Press. · Saad, Y. (2003).
+       <i>Iterative Methods for Sparse Linear Systems</i> (2.ª ed.). SIAM. · Datos: ilustrativos (ver módulo 1).</p>
+  </div>
+</section>
+</main>
+<footer>Proyecto académico · Métodos Numéricos · Ingeniería de Sistemas · UMSA</footer>
+<script>
+"use strict";
+/* ===================== DATOS Y ESCENARIOS ===================== */
+const V = ['Desarrollo de software','Infraestructura y redes','Seguridad y soporte','Capacitación e I+D'];
+const A0 = [[4,1,.5,0],[1,5,1,.5],[.5,1,4.5,1],[0,.5,1,3.5]];
+const B0 = [120,150,100,80];
+const DG = [1,10,100,1000];
+const SC = {
+  ideal:  {n:'Ideal',           A:A0, b:B0},
+  estres: {n:'Bajo estrés',     A:A0.map(r=>r.map(v=>v*1.15)), b:[132,165,110,72]},
+  mal:    {n:'Mal condicionado',A:A0.map((r,i)=>r.map((v,j)=>v*DG[i]*DG[j])),
+                                 b:B0.map((v,i)=>v*DG[i])}
+};
+const INTERP = {
+  ideal:  'Presupuesto equilibrado: los costos propios dominan a las interacciones, el reparto es estable y GCP converge en pocas iteraciones.',
+  estres: 'La inflación escala A sin cambiar κ y la demanda cambia b: solo se desplaza el punto de equilibrio y el algoritmo responde igual.',
+  mal:    'Las unidades se miden en escalas muy distintas (κ(A) enorme por mal escalamiento diagonal). Jacobi lo corrige; el reparto financiero es equivalente.'
+};
+
+/* ===================== UTILIDADES ===================== */
+const $ = id => document.getElementById(id);
+const dot = (a,b) => a.reduce((s,v,i)=>s+v*b[i],0);
+const nrm = a => Math.sqrt(dot(a,a));
+const mv  = (A,x) => A.map(r=>dot(r,x));
+const cp  = M => M.map(r=>[...r]);
+const tr  = M => M[0].map((_,j)=>M.map(r=>r[j]));
+const f   = (v,d=4) => Number(v).toFixed(d);
+const ex  = v => Number(v).toExponential(2);
+const vec = v => '['+v.map(x=>f(x,4)).join(', ')+']';
+
+function det(M){
+  const a=cp(M), n=a.length; let d=1;
+  for(let k=0;k<n;k++){
+    let p=k;
+    for(let i=k+1;i<n;i++) if(Math.abs(a[i][k])>Math.abs(a[p][k])) p=i;
+    if(a[p][k]===0) return 0;
+    if(p!==k){[a[p],a[k]]=[a[k],a[p]];d=-d}
+    d*=a[k][k];
+    for(let i=k+1;i<n;i++){const f=a[i][k]/a[k][k];for(let j=k;j<n;j++)a[i][j]-=f*a[k][j]}
+  }
+  return d;
+}
+
+/* ===================== CHOLESKY ===================== */
+function chol(A){
+  const n=A.length, L=A.map(()=>Array(n).fill(0));
+  for(let i=0;i<n;i++) for(let j=0;j<=i;j++){
+    let s=A[i][j];
+    for(let k=0;k<j;k++) s-=L[i][k]*L[j][k];
+    if(i===j){
+      if(!(s>1e-12*Math.abs(A[i][i]))) return null;
+      L[i][i]=Math.sqrt(s);
+    } else L[i][j]=s/L[j][j];
+  }
+  return L;
+}
+const fwd=(L,b)=>{const y=[];for(let i=0;i<L.length;i++){let s=b[i];for(let k=0;k<i;k++)s-=L[i][k]*y[k];y[i]=s/L[i][i]}return y};
+const bwd=(L,y)=>{const n=L.length,x=[];for(let i=n-1;i>=0;i--){let s=y[i];for(let k=i+1;k<n;k++)s-=L[k][i]*x[k];x[i]=s/L[i][i]}return x};
+
+/* ===================== AUTOVALORES (Jacobi rotacional) ===================== */
+function eig(A){
+  const n=A.length, a=cp(A);
+  for(let sw=0;sw<120;sw++){
+    let off=0;
+    for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) off+=a[i][j]**2;
+    if(off<1e-26) break;
+    for(let p=0;p<n;p++) for(let q=p+1;q<n;q++){
+      if(Math.abs(a[p][q])<1e-300) continue;
+      const th=(a[q][q]-a[p][p])/(2*a[p][q]);
+      const t=(th>=0?1:-1)/(Math.abs(th)+Math.sqrt(th*th+1));
+      const c=1/Math.sqrt(t*t+1), s=t*c;
+      for(let k=0;k<n;k++){const u=a[k][p],v=a[k][q];a[k][p]=c*u-s*v;a[k][q]=s*u+c*v}
+      for(let k=0;k<n;k++){const u=a[p][k],v=a[q][k];a[p][k]=c*u-s*v;a[q][k]=s*u+c*v}
+    }
+  }
+  return a.map((r,i)=>r[i]).sort((x,y)=>x-y);
+}
+
+/* ===================== PRECONDICIONADORES ===================== */
+function precond(A, tipo){
+  const n=A.length;
+  if(tipo==='none') return null;
+
+  if(tipo==='jacobi'){
+    const d=A.map((r,i)=>r[i]);
+    if(d.some(v=>!(v>0))) throw new Error('Jacobi requiere diagonal estrictamente positiva.');
+    return {label:'Jacobi', apply:r=>r.map((v,i)=>v/d[i])};
+  }
+
+  if(tipo==='ic0'){
+    const Lc=A.map(()=>Array(n).fill(0));
+    for(let i=0;i<n;i++) for(let j=0;j<=i;j++){
+      if(A[i][j]===0) continue;
+      let s=A[i][j];
+      for(let k=0;k<j;k++) s-=Lc[i][k]*Lc[j][k];
+      if(i===j){
+        if(!(s>1e-14)) throw new Error('IC(0) no es definida positiva para esta matriz.');
+        Lc[i][i]=Math.sqrt(s);
+      } else Lc[i][j]=s/Lc[j][j];
+    }
+    return {label:'IC(0)', apply:r=>bwd(Lc,fwd(Lc,r))};
+  }
+
+  if(tipo==='ssor'){
+    const d=A.map((r,i)=>r[i]);
+    if(d.some(v=>!(v>0))) throw new Error('SSOR requiere diagonal estrictamente positiva.');
+    return {label:'SSOR (ω=1)', apply:r=>{
+      const y=new Array(n), u=new Array(n), z=new Array(n);
+      for(let i=0;i<n;i++){
+        let s=r[i];
+        for(let j=0;j<i;j++) s-=A[i][j]*y[j];
+        y[i]=s/d[i];
+        u[i]=y[i]/d[i];
+      }
+      for(let i=n-1;i>=0;i--){
+        let s=u[i];
+        for(let j=i+1;j<n;j++) s-=A[j][i]*z[j];
+        z[i]=s/d[i];
+      }
+      return z;
+    }};
+  }
+  throw new Error('Precondicionador desconocido: '+tipo);
+}
+
+/* ===================== GCP (Suñagua 2020) Y GC ===================== */
+function pcg(A,b,x0,prec,tol,nm){
+  let x=[...x0], Ax=mv(A,x), r=b.map((v,i)=>v-Ax[i]);
+  const bn=nrm(b), h=[nrm(r)/bn];
+  if(h[0]<tol) return {x,it:0,h,ok:true};
+
+  const apply = prec ? prec.apply : (v=>v.slice());
+  let z=apply(r), p=[...z], rz=dot(r,z);
+  for(let k=1;k<=nm;k++){
+    const Ap=mv(A,p), pAp=dot(p,Ap);
+    if(!(pAp>0)) throw new Error('pᵀAp no positivo: A no es SPD.');
+    const al=rz/pAp;
+    x=x.map((v,i)=>v+al*p[i]);
+    r=r.map((v,i)=>v-al*Ap[i]);
+    const rel=nrm(r)/bn; h.push(rel);
+    if(rel<tol) return {x,it:k,h,ok:true};
+    z=apply(r); const rz2=dot(r,z), be=rz2/rz; rz=rz2;
+    p=z.map((v,i)=>v+be*p[i]);
+  }
+  return {x,it:nm,h,ok:false};
+}
+
+/* ===================== VALIDACIÓN ===================== */
+function validar(A,b){
+  const n=A.length, m=[];
+  if(A.flat().concat(b).some(v=>!isFinite(v))) return {m:['Hay valores no numéricos en A o en b.'],mn:[]};
+  let as=0, mx=0;
+  for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+    as=Math.max(as,Math.abs(A[i][j]-A[j][i]));
+    mx=Math.max(mx,Math.abs(A[i][j]));
+  }
+  if(as>1e-9*(1+mx))
+    return {m:['A no es simétrica: máx |aij − aji| = '+as.toPrecision(3)+'. Corrige para que aij = aji.'],mn:[]};
+  const mn=[];
+  for(let k=1;k<=n;k++) mn.push(det(A.slice(0,k).map(r=>r.slice(0,k))));
+  if(mn.some(d=>!(d>0)))
+    m.push('A no es definida positiva: algún menor principal es ≤ 0 ('+mn.map(d=>d.toPrecision(3)).join('; ')+').');
+  return {m,mn};
+}
+
+/* ===================== RESOLUCIÓN COMPLETA POR ESCENARIO ===================== */
+function resolver(A,b,x0,tol,nm,pt){
+  const v = validar(A,b);
+  if(v.m.length) return {err:v.m, mn:v.mn};
+
+  const L = chol(A);
+  if(!L) return {err:['Cholesky falló: A no es definida positiva.'], mn:v.mn};
+
+  const xr = bwd(L,fwd(L,b));           // solución de referencia
+  const ev = eig(A);
+  const lmin = ev[0], lmax = ev[ev.length-1];
+  const kA = lmax/lmin;
+
+  // precondicionador
+  let prec=null;
+  try{ prec = precond(A,pt); }
+  catch(e){ return {err:[e.message], mn:v.mn}; }
+
+  // κ(M⁻¹A) aproximado vía simetrización (M⁻¹A + A M⁻¹)/2 usando M⁻¹ aplicada a la identidad
+  let kP = kA, kP_ok = false;
+  if(prec){
+    try{
+      const n = A.length;
+      const Minv = Array.from({length:n},()=>Array(n).fill(0));
+      for(let j=0;j<n;j++){
+        const col = Array.from({length:n},(_,i)=>i===j?1:0);
+        const Mj  = prec.apply(col);
+        for(let i=0;i<n;i++) Minv[i][j]=Mj[i];
+      }
+      // M⁻¹A
+      const MinvA = Minv.map(row=>A.map((_,j)=>dot(row,A.map(r=>r[j]))));
+      // simetrizar
+      const S = MinvA.map((row,i)=>row.map((v,j)=>(v+MinvA[j][i])/2));
+      const evP = eig(S);
+      if(evP[0]>1e-14) { kP = evP[evP.length-1]/evP[0]; kP_ok = true; }
+    }catch(_){}
+  }
+
+  // GCP y GC
+  const g = pcg(A,b,x0,prec,tol,nm);
+  const c = pcg(A,b,x0,null,tol,nm);
+
+  // errores
+  const Ea = xr.map((q,i)=>Math.abs(q-g.x[i]));
+  const Er = Ea.map((e,i)=>xr[i]===0?NaN:e/Math.abs(xr[i]));
+  const Ep = Er.map(e=>e*100);
+
+  // residuo global
+  const Ax = mv(A,g.x);
+  const res = nrm(b.map((q,i)=>q-Ax[i]))/nrm(b);
+
+  return {
+    xr, gcp:g, gc:c, Ea, Er, Ep, res,
+    kA, kP, kP_ok, lmin, lmax, mn:v.mn,
+    precLabel: prec ? prec.label : 'Ninguno'
+  };
+}
+  /* ===================== ESTADO Y PARÁMETROS ===================== */
+let cur = 'ideal';
+let S = {A: cp(SC.ideal.A), b: [...SC.ideal.b]};
+
+function params(){
+  const x0raw = $('x0').value.split(',').map(Number);
+  const x0 = x0raw.length===4 && x0raw.every(isFinite) ? x0raw : [0,0,0,0];
+  return {
+    x0,
+    tol: +$('tol').value || 1e-6,
+    nm:  +$('nm').value  || 1000,
+    pt:  $('pt').value
+  };
+}
+
+/* ===================== GRÁFICO DE CONVERGENCIA (canvas puro) ===================== */
+function drawChart(g,c,tol){
+  const cv = $('cv');
+  if(!cv) return;
+  const ctx = cv.getContext('2d');
+  const st  = getComputedStyle(document.body);
+  const W = cv.width, H = cv.height, P = 46;
+
+  ctx.clearRect(0,0,W,H);
+
+  const all = g.h.concat(c.h).map(v=>Math.log10(Math.max(v,1e-16)));
+  const lo  = Math.min(...all, Math.log10(tol)) - .6;
+  const hi  = Math.max(...all) + .4;
+  const N   = Math.max(g.h.length, c.h.length, 2) - 1;
+
+  const X = i => P + i/N*(W - P - 12);
+  const Y = v => 12 + (hi - Math.log10(Math.max(v,1e-16)))/(hi - lo)*(H - 12 - P);
+
+  ctx.font = '11px ui-sans-serif,system-ui,sans-serif';
+  ctx.fillStyle = st.getPropertyValue('--muted') || '#666';
+  ctx.strokeStyle = st.getPropertyValue('--line') || '#ccc';
+
+  // rejilla horizontal (cada potencia de 10)
+  for(let e=Math.ceil(lo); e<=hi; e++){
+    const y = Y(10**e);
+    ctx.fillText('1e'+e, 2, y+4);
+    ctx.globalAlpha = .25;
+    ctx.beginPath(); ctx.moveTo(P, y); ctx.lineTo(W-12, y); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // eje X
+  ctx.fillText('iteración', W/2-22, H-8);
+  const stepLabel = N < 12 ? 1 : Math.ceil(N/10);
+  for(let i=0;i<=N;i+=stepLabel){
+    ctx.fillText(i, X(i)-3, H-P+14);
+  }
+
+  // líneas
+  const drawLine = (h,col,dash) => {
+    ctx.strokeStyle = col;
+    ctx.setLineDash(dash);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    h.forEach((v,i) => i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v)));
+    ctx.stroke();
+  };
+
+  // tolerancia
+  drawLine([tol,tol], st.getPropertyValue('--muted') || '#666', [2,3]);
+  // GC discontinuo
+  drawLine(c.h, st.getPropertyValue('--or') || '#c2410c', [6,4]);
+  // GCP sólido
+  drawLine(g.h, st.getPropertyValue('--ac') || '#0b6e6e', []);
+  ctx.setLineDash([]);
+}
+
+/* ===================== CONSTRUCCIÓN DE LA TABLA DE ENTRADA ===================== */
+function buildInputs(){
+  $('vars').innerHTML = '<tr><th>Variable</th><th>Significado financiero (miles de Bs)</th></tr>' +
+    V.map((v,i)=>`<tr><td>x${i+1}</td><td>Presupuesto asignado a ${v}</td></tr>`).join('');
+
+  $('mat').innerHTML =
+    '<tr><th></th>' + V.map((_,j)=>`<th>x${j+1}</th>`).join('') + '<th>b</th></tr>' +
+    S.A.map((r,i)=>
+      `<tr><th>Ec. ${i+1}</th>` +
+      r.map((v,j)=>`<td><input class="c" type="number" step="any" data-i="${i}" data-j="${j}" value="${v}" aria-label="a${i+1}${j+1}"></td>`).join('') +
+      `<td><input class="c" type="number" step="any" data-b="${i}" value="${S.b[i]}" aria-label="b${i+1}"></td>` +
+      `</tr>`
+    ).join('');
+
+  $('mat').querySelectorAll('input').forEach(el=>{
+    el.oninput = () => {
+      const v = parseFloat(el.value);
+      if(el.dataset.b !== undefined) S.b[+el.dataset.b] = v;
+      else S.A[+el.dataset.i][+el.dataset.j] = v;
+      cur = 'custom';
+      mark();
+      run();
+    };
+  });
+}
+
+/* ===================== MARCADO DE BOTONES DE ESCENARIO ===================== */
+function mark(){
+  document.querySelectorAll('#sbtn button').forEach(b=>{
+    b.classList.toggle('on', b.dataset.s === cur);
+  });
+}
+
+function setS(k){
+  cur = k;
+  S = {A: cp(SC[k].A), b: [...SC[k].b]};
+  buildInputs();
+  mark();
+  run();
+}
+
+/* ===================== TABLA COMPARATIVA OBLIGATORIA (sección 8) ===================== */
+function compTable(){
+  const p = params();
+  const keys = Object.keys(SC);
+  const R = keys.map(k => resolver(SC[k].A, SC[k].b, [0,0,0,0], p.tol, p.nm, p.pt));
+  const H = keys.map(k=>'<th>'+SC[k].n+'</th>').join('');
+
+  const rows = [
+    ['Solución numérica de referencia', r => r.err ? '—' : vec(r.xr)],
+    ['Solución GCP',                   r => r.err ? '—' : vec(r.gcp.x)],
+    ['Error absoluto (Ea) por variable', r => r.err ? '—' : r.Ea.map(ex).join('; ')],
+    ['Error porcentual (Ep) por variable', r => r.err ? '—' : r.Ep.map(v=>isNaN(v)?'n/d':ex(v)).join('; ')],
+    ['Iteraciones GC (sin precond.)',  r => r.err ? '—' : r.gc.it],
+    ['Iteraciones GCP (precond.)',     r => r.err ? '—' : r.gcp.it],
+    ['κ(A)',                            r => r.err ? '—' : ex(r.kA)],
+    ['κ(M⁻¹A)',                         r => r.err ? '—' : (r.kP_ok ? ex(r.kP) : ex(r.kA) + ' (aprox.)')],
+    ['Residuo relativo final GCP',      r => r.err ? '—' : ex(r.gcp.h[r.gcp.h.length-1])],
+    ['¿Convergió el algoritmo?',        r => r.err ? '—' : (r.gcp.ok ? 'Sí' : 'No')],
+    ['Interpretación financiera',       (r,i) => INTERP[keys[i]]]
+  ];
+
+  $('comp').innerHTML =
+    '<tr><th>Indicador</th>'+H+'</tr>' +
+    rows.map(([n,fn])=>
+      '<tr><td>'+n+'</td>' +
+      R.map((r,i)=>`<td class="${fn.length>1?'wrap':'n'}">${r.err && n!=='Interpretación financiera' ? '—' : fn(r,i)}</td>`).join('') +
+      '</tr>'
+    ).join('');
+}
+
+/* ===================== RUN PRINCIPAL ===================== */
+function run(){
+  const p = params();
+  const r = resolver(S.A, S.b, p.x0, p.tol, p.nm, p.pt);
+
+  $('scn').textContent = SC[cur] ? SC[cur].n : 'Personalizado';
+  ['sdp','ref','gcpout','errs','resg'].forEach(id => $(id).innerHTML = '');
+
+  if(r.err){
+    $('msg').innerHTML = '<div class="err" role="alert"><b>Sistema no válido.</b> ' + r.err.join(' ') + '</div>';
+    $('sdp').innerHTML = '<p class="bad">No se puede resolver: corrige A o b.</p>';
+    const cv = $('cv'); if(cv) cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
+    compTable();
+    return r;
+  }
+
+  $('msg').innerHTML = '';
+
+  // verificación Sylvester + autovalor mínimo
+  $('sdp').innerHTML =
+    `<p>Simetría: <span class="ok">A = Aᵀ ✓</span>. Criterio de Sylvester, menores principales:
+       <span class="num">${r.mn.map(d=>d.toPrecision(5)).join(' ; ')}</span>
+       (todos &gt; 0 ⇒ definida positiva ✓). λmin = ${r.lmin.toPrecision(4)},
+       λmax = ${r.lmax.toPrecision(4)}.</p>`;
+
+  // referencia
+  $('ref').innerHTML = `<p>x<sub>ref</sub> = <span class="num">${vec(r.xr)}</span></p>`;
+
+  // GCP vs GC
+  const row = (n,o) =>
+    `<tr><td>${n}</td><td class="n">${o.it}</td><td class="n">${vec(o.x)}</td>
+     <td class="n">${ex(o.h[o.h.length-1])}</td>
+     <td class="${o.ok?'ok':'bad'}">${o.ok?'Sí':'No'}</td></tr>`;
+
+  $('gcpout').innerHTML =
+    `<div class="tablewrap"><table>
+      <tr><th>Método</th><th>Iteraciones</th><th>Solución aproximada</th><th>Residuo relativo final</th><th>¿Convergió?</th></tr>
+      ${row('GCP ('+r.precLabel+')', r.gcp)}
+      ${row('GC sin precondicionar', r.gc)}
+     </table></div>
+     <p>κ(A) = <b class="num">${ex(r.kA)}</b> ·
+        κ(M⁻¹A) = <b class="num">${r.kP_ok ? ex(r.kP) : ex(r.kA)+' (aprox.)'}</b></p>`;
+
+  // errores por variable
+  $('errs').innerHTML =
+    '<tr><th>Variable</th><th>x ref</th><th>x GCP</th><th>Ea</th><th>Er</th><th>Ep (%)</th></tr>' +
+    V.map((v,i)=>
+      `<tr><td>x${i+1} ${v}</td>
+        <td class="n">${f(r.xr[i],6)}</td>
+        <td class="n">${f(r.gcp.x[i],6)}</td>
+        <td class="n">${ex(r.Ea[i])}</td>
+        <td class="n">${isNaN(r.Er[i])?'no definido':ex(r.Er[i])}</td>
+        <td class="n">${isNaN(r.Ep[i])?'no definido':ex(r.Ep[i])}</td>
+       </tr>`
+    ).join('');
+
+  $('resg').innerHTML =
+    `<p>Residuo relativo global ‖b − A·x<sub>GCP</sub>‖₂ / ‖b‖₂ =
+       <b class="num">${ex(r.res)}</b></p>`;
+
+  drawChart(r.gcp, r.gc, p.tol);
+  compTable();
+  return r;
+}
+
+/* ===================== MÓDULO QA ===================== */
+function qa(){
+  const T = 1e-6;
+  const rows = [];
+  const add = (nombre, entrada, esperado, fn) => {
+    let obtenido, ok;
+    try{
+      const [out, pass] = fn();
+      obtenido = out; ok = pass;
+    }catch(x){
+      obtenido = 'Excepción: ' + x.message; ok = false;
+    }
+    rows.push([nombre, entrada, esperado, obtenido, ok]);
+  };
+
+  // 1. Carga de escenarios
+  add('1. Carga de escenarios',
+      'Ejecutar los 3 escenarios con Jacobi y tol=1e-6',
+      'Todos convergen con residuo < 1e-6',
+      ()=>{
+        const ks = Object.keys(SC);
+        const R = ks.map(k => resolver(SC[k].A, SC[k].b, [0,0,0,0], T, 1000, 'jacobi'));
+        const all = R.every(r => !r.err && r.gcp.ok && r.res < T);
+        return [ks.map((k,i)=>k+': '+(R[i].err?'error':R[i].gcp.it+' it., res '+ex(R[i].res))).join(' | '), all];
+      });
+
+  // 2a. Matriz no simétrica
+  add('2a. Matriz no simétrica',
+      'A con a12 = 2 (original 1)',
+      'Error capturado, sin colapsar',
+      ()=>{
+        const A = cp(A0); A[0][1] = 2;
+        const r = resolver(A, B0, [0,0,0,0], T, 1000, 'jacobi');
+        return [r.err ? r.err[0] : 'sin error', !!r.err];
+      });
+
+  // 2b. Matriz no definida positiva
+  add('2b. Matriz no definida positiva',
+      'A con a11 = -1',
+      'Error capturado, sin colapsar',
+      ()=>{
+        const A = cp(A0); A[0][0] = -1;
+        const r = resolver(A, B0, [0,0,0,0], T, 1000, 'jacobi');
+        return [r.err ? r.err[0] : 'sin error', !!r.err];
+      });
+
+  // 3. Edición dinámica
+  add('3. Edición dinámica',
+      'Cambiar a11 de 4 a 6',
+      'La solución cambia y residuo < 1e-6',
+      ()=>{
+        const A = cp(A0); A[0][0] = 6;
+        const r0 = resolver(A0, B0, [0,0,0,0], T, 1000, 'jacobi');
+        const r1 = resolver(A,  B0, [0,0,0,0], T, 1000, 'jacobi');
+        const moved = Math.abs(r0.xr[0] - r1.xr[0]) > 1e-3;
+        return ['x1: ' + f(r0.xr[0]) + ' → ' + f(r1.xr[0]) + '; res ' + ex(r1.res),
+                moved && r1.res < T];
+      });
+
+  // 4. Comparativa precondicionamiento
+  add('4. Comparativa de precondicionamiento',
+      'Escenario mal condicionado',
+      'GCP converge en ≤ iteraciones que GC',
+      ()=>{
+        const r = resolver(SC.mal.A, SC.mal.b, [0,0,0,0], T, 1000, 'jacobi');
+        return ['GCP ' + r.gcp.it + ' it. vs GC ' + r.gc.it + ' it.; κ(A) ' + ex(r.kA) +
+                ' → κ(M⁻¹A) ' + (r.kP_ok ? ex(r.kP) : 'aprox. ' + ex(r.kP)),
+                r.gcp.ok && r.gc.ok && r.gcp.it <= r.gc.it];
+      });
+
+  // Render
+  $('qat').innerHTML =
+    '<tr><th>Prueba</th><th>Entrada</th><th>Resultado esperado</th><th>Resultado obtenido</th><th>Conclusión</th></tr>' +
+    rows.map(r =>
+      `<tr>
+        <td>${r[0]}</td>
+        <td class="wrap">${r[1]}</td>
+        <td class="wrap">${r[2]}</td>
+        <td class="n wrap">${r[3]}</td>
+        <td class="${r[4]?'ok':'bad'}">${r[4]?'Aprobada':'Fallida'}</td>
+       </tr>`
+    ).join('');
+}
+
+/* ===================== ARRANQUE ===================== */
+document.querySelectorAll('#sbtn button').forEach(b=>{
+  b.onclick = () => setS(b.dataset.s);
+});
+['x0','tol','nm','pt'].forEach(id => { $(id).onchange = run; });
+$('go').onclick  = run;
+$('rqa').onclick = qa;
+
+buildInputs();
+mark();
+setS('ideal');
+qa();
+</script>
+</body>
+</html>
