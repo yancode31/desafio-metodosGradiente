@@ -1,5 +1,3 @@
-# desafio-metodosGradiente
-================================================================================
 UNIVERSIDAD MAYOR DE SAN ANDRÉS
 FACULTAD DE CIENCIAS PURAS Y NATURALES · CARRERA DE INFORMÁTICA
 MÉTODOS NUMÉRICOS · DESAFÍO ACADÉMICO INDIVIDUAL
@@ -12,9 +10,7 @@ Carrera         : Informática
 Mención         : Ingeniería de Sistemas
 Materia         : Métodos Numéricos
 
-================================================================================
 1. DESCRIPCIÓN DEL CASO
-================================================================================
 
 Una empresa mediana distribuye su presupuesto anual de tecnología entre cuatro
 unidades organizacionales. Cada unidad tiene un costo propio creciente
@@ -41,9 +37,7 @@ Los valores utilizados son ilustrativos, calibrados para el ejercicio académico
 No corresponden a cifras oficiales de ninguna empresa.
 
 
-================================================================================
 2. FORMULACIÓN MATEMÁTICA
-================================================================================
 
 Sistema lineal:
 
@@ -64,9 +58,7 @@ Propiedades que debe cumplir A:
 La aplicación web valida ambas condiciones y notifica al usuario si falla.
 
 
-================================================================================
 3. TRES ESCENARIOS OBLIGATORIOS
-================================================================================
 
 Escenario             Construcción                          Análisis esperado
 --------------------------------------------------------------------------------
@@ -82,10 +74,7 @@ Mal condicionado      A' = D · A · D ,  b' = D · b           κ(A) ~ 10⁹ po
                                                              diagonal; Jacobi
                                                              lo reduce mucho
 
-
-================================================================================
 4. MÉTODOS IMPLEMENTADOS
-================================================================================
 
 4.1 Solución de referencia — Cholesky
 
@@ -127,33 +116,25 @@ Mal condicionado      A' = D · A · D ,  b' = D · b           κ(A) ~ 10⁹ po
     x0 = [0, 0, 0, 0]ᵀ  por defecto
 
 
-================================================================================
 5. MÓDULOS DE LA PÁGINA WEB
-================================================================================
 
   #    Módulo                            Descripción
 --------------------------------------------------------------------------------
-  1    Inicio                            Título, estudiante, mención,
-                                         síntesis del caso
-  2    Caso de estudio                   Contexto financiero y justificación
-  3    Formulación                      Variables, sistema Ax=b,
-                                         interpretación de coeficientes
-  4    Entrada de datos                  Edición de A y b, x0, tolerancia,
-                                         precondicionador
-  5    Tres escenarios                   Botones Ideal / Estrés / Mal cond.
-  6    Solución de referencia            Cholesky + Sylvester + λmin
-  7    GCP vs GC                         Vectores, iteraciones, residuos
-  8    Análisis de errores               Ea, Er, Ep por variable
-  9    Tabla comparativa obligatoria     12 filas del enunciado por escenario
- 10    Módulo QA                         5 pruebas con formato estándar
+  1    Caso                             Contexto financiero y justificacion
+  2    Formulacion                      Variables, sistema Ax=b
+  3    Entrada                    
+  4    Escenarios               
+  5    Referencia                   
+  6    GCP vs GC                         Vectores, iteraciones, residuos
+  7    Análisis de errores               Ea, Er, Ep por variable
+  8    Tabla comparativa obligatoria     12 filas del enunciado por escenario
+  9    Módulo QA                         5 pruebas con formato estándar
  11    Conclusiones y referencias        Interpretación matemática y financiera
 
 La página recalcula todo automáticamente al modificar cualquier coeficiente.
 
 
-================================================================================
 6. ANÁLISIS DE ERRORES Y CONDICIONAMIENTO
-================================================================================
 
 Por variable i:
 
@@ -168,9 +149,7 @@ Globales:
                        κ(M⁻¹A) para la matriz precondicionada
 
 
-================================================================================
 7. PRUEBAS DE SOFTWARE (QA)
-================================================================================
 
 Se ejecutan desde el módulo 9 con el botón "Ejecutar pruebas". Formato estándar:
 
@@ -215,9 +194,7 @@ Se ejecutan desde el módulo 9 con el botón "Ejecutar pruebas". Formato estánd
        Sección 7 y tabla comparativa de la sección 8.
 
 
-================================================================================
 9. RESULTADOS ESPERADOS
-================================================================================
 
     Ideal
         κ(A) ~ 10¹.
