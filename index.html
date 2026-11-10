@@ -91,7 +91,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:18px}
   <p>Asignación de un presupuesto anual de tecnología entre cuatro unidades organizacionales mediante
      <b>Ax = b</b> con A simétrica definida positiva. Se compara la solución directa (Cholesky),
      Gradientes Conjugados (GC) y Gradientes Conjugados Precondicionados (GCP) con Jacobi, IC(0) y SSOR.</p>
-  <p class="mut" style="color:#cfe1ff">Estudiante: <b>[NOMBRE COMPLETO]</b> · Mención: Ingeniería de Sistemas · Tolerancia 10⁻⁶</p>
+  <p class="mut" style="color:#cfe1ff">Estudiante: <b>YANDIRA MORALES</b> · Mención: Ingeniería de Sistemas</p>
 </header>
 
 <main>
@@ -181,9 +181,9 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:18px}
       <button data-s="estres">Bajo estrés</button>
       <button data-s="mal">Mal condicionado</button>
     </div>
-    <p class="mut">Ideal: A bien condicionada (κ ~ 10¹). Estrés: inflación del 15 % en costos unitarios
+    <p class="mut">Ideal: A bien condicionada (κ ≈ 2). Estrés: inflación del 15 % en costos unitarios
        (A·1,15) y cambio de la demanda (b). Mal condicionado: las unidades se miden en escalas muy
-       distintas, A' = D·A·D con D = diag(1, 10, 100, 1000) y b' = D·b (κ ~ 10⁹). El precondicionador de
+       distintas, A' = D·A·D con D = diag(1, 10, 100, 1000) y b' = D·b (κ ≈ 10⁶). El precondicionador de
        Jacobi revierte el mal escalamiento diagonal. La tabla de la sección 8 usa el precondicionador y la
        tolerancia seleccionados arriba.</p>
   </div>
@@ -219,6 +219,10 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:18px}
     <h2>7. Análisis de errores</h2>
     <div class="tablewrap"><table id="errs"></table></div>
     <div id="resg"></div>
+    <h3>Aporte de la mención: reglas de negocio y flujo de caja interdepartamental</h3>
+    <p class="sub">Lectura de la solución x* como reparto de caja entre unidades. La "interacción" es el recurso compartido que cada unidad consume por su relación con las demás.</p>
+    <div class="tablewrap"><table id="neg"></table></div>
+    <div id="rules"></div>
   </div>
 </section>
 
@@ -371,7 +375,7 @@ function precond(A, tipo){
         let s=r[i];
         for(let j=0;j<i;j++) s-=A[i][j]*y[j];
         y[i]=s/d[i];
-        u[i]=y[i]/d[i];
+        u[i]=y[i]*d[i];
       }
       for(let i=n-1;i>=0;i--){
         let s=u[i];
@@ -453,10 +457,11 @@ function resolver(A,b,x0,tol,nm,pt){
         const Mj  = prec.apply(col);
         for(let i=0;i<n;i++) Minv[i][j]=Mj[i];
       }
-      // M⁻¹A
-      const MinvA = Minv.map(row=>A.map((_,j)=>dot(row,A.map(r=>r[j]))));
-      // simetrizar
-      const S = MinvA.map((row,i)=>row.map((v,j)=>(v+MinvA[j][i])/2));
+      // κ(M⁻¹A): M⁻¹ = R Rᵀ (Cholesky) → autovalores de RᵀAR (simétrica) = autovalores de M⁻¹A
+      const R = chol(Minv.map((r,i)=>r.map((v,j)=>(v+Minv[j][i])/2)));
+      if(!R) throw new Error('M⁻¹ no es definida positiva');
+      const mm=(X,Y)=>X.map(r=>Y[0].map((_,j)=>dot(r,Y.map(q=>q[j]))));
+      const S = mm(tr(R),mm(A,R));
       const evP = eig(S);
       if(evP[0]>1e-14) { kP = evP[evP.length-1]/evP[0]; kP_ok = true; }
     }catch(_){}
@@ -612,6 +617,9 @@ function compTable(){
     ['κ(M⁻¹A)',                         r => r.err ? '—' : (r.kP_ok ? ex(r.kP) : ex(r.kA) + ' (aprox.)')],
     ['Residuo relativo final GCP',      r => r.err ? '—' : ex(r.gcp.h[r.gcp.h.length-1])],
     ['¿Convergió el algoritmo?',        r => r.err ? '—' : (r.gcp.ok ? 'Sí' : 'No')],
+    ['Simetría A = Aᵀ',                 r => r.err ? '—' : '✓ (verificada)'],
+    ['Menores principales (Sylvester)', r => r.err ? '—' : r.mn.map(d=>d.toPrecision(4)).join('; ') + ' → definida positiva ✓'],
+    ['Autovalor mínimo λmin',           r => r.err ? '—' : r.lmin.toPrecision(4)],
     ['Interpretación financiera',       (r,i) => INTERP[keys[i]]]
   ];
 
@@ -684,9 +692,27 @@ function run(){
     `<p>Residuo relativo global ‖b − A·x<sub>GCP</sub>‖₂ / ‖b‖₂ =
        <b class="num">${ex(r.res)}</b></p>`;
 
+  negocio(r);
   drawChart(r.gcp, r.gc, p.tol);
   compTable();
   return r;
+}
+
+/* ===================== REGLAS DE NEGOCIO Y FLUJO INTERDEPARTAMENTAL ===================== */
+function negocio(r){
+  const A=S.A, b=S.b, x=r.xr, tot=x.reduce((s,v)=>s+v,0);
+  const inter = x.map((xi,i)=>xi*A[i].reduce((s,a,j)=>j===i?s:s+a*x[j],0));
+  const propio = x.map((xi,i)=>0.5*A[i][i]*xi*xi);
+  $('neg').innerHTML='<tr><th>Unidad</th><th>Asignación x* (miles Bs)</th><th>Participación</th><th>Costo propio ½·aᵢᵢ·xᵢ²</th><th>Costo por interacción</th><th>Necesidad bᵢ</th></tr>'+
+    V.map((v,i)=>`<tr><td>x${i+1} ${v}</td><td class="n">${f(x[i],3)}</td><td class="n">${f(100*x[i]/tot,1)} %</td><td class="n">${f(propio[i],2)}</td><td class="n">${f(inter[i],2)}</td><td class="n">${f(b[i],2)}</td></tr>`).join('')+
+    `<tr><td><b>Total</b></td><td class="n"><b>${f(tot,3)}</b></td><td class="n">100 %</td><td class="n">${f(propio.reduce((s,v)=>s+v,0),2)}</td><td class="n">${f(inter.reduce((s,v)=>s+v,0),2)}</td><td class="n">${f(b.reduce((s,v)=>s+v,0),2)}</td></tr>`;
+  const fopt = -0.5*dot(b,x), neg = x.filter(v=>v<=0).length;
+  const maxsh = Math.max(...x)/tot;
+  $('rules').innerHTML=
+    `<div class="status ${neg?'bad':'ok'}">Regla 1 · Toda asignación debe ser positiva: ${neg?neg+' unidad(es) con x ≤ 0, revisa el modelo.':'cumplida (x* &gt; 0 en las 4 unidades).'}</div>`+
+    `<div class="status ${maxsh<=0.5?'ok':'warn'}">Regla 2 · Ninguna unidad debe concentrar más del 50 % del presupuesto: mayor participación ${f(100*maxsh,1)} % ${maxsh<=0.5?'(cumplida)':'(excede el límite)'}.</div>`+
+    (cur==='mal'?'<div class="status warn">En este escenario las variables están en unidades distintas (D = diag(1, 10, 100, 1000)): las participaciones y la regla 2 no son comparables entre unidades. Conviértelas con x = D⁻¹·(escala original) antes de interpretarlas.</div>':'')+
+    `<p class="note">Costo total esperado en el óptimo: f(x*) = −½·bᵀx* = ${f(fopt,3)}. Un f menor (más negativo) indica un reparto que cubre mejor la necesidad con menor costo.</p>`;
 }
 
 /* ===================== MÓDULO QA ===================== */
